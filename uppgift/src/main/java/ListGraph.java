@@ -11,12 +11,12 @@ public class ListGraph {
     private List<Node> visitedNodes;
 
     public void add(Node node) {
-        nodes.put(node);
+        nodes.putIfAbsent(node, new HashSet<>());
     }
 
     public void remove(Node node) throws NoSuchElementException {
         if(!nodes.containsKey(node)) {
-            throw new NoSuchElementException();
+            throw new NoSuchElementException("Node not found");
         }
         for(Edge edge : getEdgesFrom(node)) {
             disconnect(edge.getDestination(), node);
@@ -27,72 +27,126 @@ public class ListGraph {
 
     public void connect(Node startNode, Node endNode, String connection, int weight) throws NoSuchElementException, IllegalArgumentException, IllegalStateException {
         if(!nodes.containsKey(startNode) || !nodes.containsKey(endNode)) {
-            throw new NoSuchElementException();
+            throw new NoSuchElementException("Node not found");
         }
         if(weight < 0){
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Weight cannot be negative");
         }
-        Edge edge = new Edge(connection, weight, startNode, endNode);
+        if(getEdgeBetween(startNode, endNode) != null) {
+            throw new IllegalStateException("Node already connected");
+        }
+
+        Edge edge1 = new Edge(connection, weight, startNode, endNode);
+        Edge edge2 = new Edge(connection, weight, endNode, startNode);
+
+        nodes.get(startNode).add(edge1);
+        nodes.get(endNode).add(edge2);
     }
 
     public void disconnect(Node node1, Node node2) throws NoSuchElementException, IllegalStateException {
+        if(!nodes.containsKey(node1) || nodes.containsKey(node2)) {
+            throw new NoSuchElementException("Node not found");
+        }
 
+        Edge edge1 = getEdgeBetween(node1, node2);
+        Edge edge2 = getEdgeBetween(node2, node1);
+
+        if (edge1 == null || edge2 == null) {
+            throw new IllegalStateException("Edge not found");
+        }
+
+        nodes.get(node1).remove(edge1);
+        nodes.get(node2).remove(edge2);
     }
 
     public void setConnectionWeight(Node node1, Node node2, int weight) throws NoSuchElementException, IllegalArgumentException {
+        if(!nodes.containsKey(node1) || nodes.containsKey(node2)){
+            throw new NoSuchElementException("Node not found!");
+        }
 
+        Edge edge1 = getEdgeBetween(node1, node2);
+        Edge edge2 = getEdgeBetween(node2, node1);
+
+        if (edge1 == null || edge2 == null) {
+            throw new IllegalStateException("Edge not found");
+        }
+
+        edge1.setWeight(weight);
+        edge2.setWeight(weight);
     }
 
     public Map<Node, Set<Edge>> getNodes() {
-        return nodes;
+        Map<Node, Set<Edge>> nodeMap = new HashMap<>(nodes);
+        return nodeMap;
     }
 
     public List<Edge> getEdgesFrom(Node node) throws NoSuchElementException{
-        return null;
+        if(!nodes.containsKey(node)) {
+            throw new NoSuchElementException("Node not found");
+        }
+        List<Edge> ed = new ArrayList<>();
+        for(Edge edge : edges){
+            if(edge.getDestination().equals(node)){
+                ed.add(edge);
+            }
+        }
+        return ed;
     }
 
     public Edge getEdgeBetween(Node node1, Node node2) throws NoSuchElementException{
-        for(Edge edge : edges) {
-            if(edge.)
+        if (!nodes.containsKey(node1) || !nodes.containsKey(node2)) {
+            throw new NoSuchElementException("Node not found");
+        }
+
+        for(Edge edge : nodes.get(node1)) {
+            if(edge.getDestination().equals(node2)) {
+                return edge;
+            }
         }
         return null;
     }
 
     public String toString(){
-        return "";
+        return  edges.toString() + "\n" + nodes.toString();
     }
 
     public boolean pathExists(Node currentNode, Node destination) {
-        visitedNodes.add(currentNode);
+        if (!nodes.containsKey(currentNode) || !nodes.containsKey(destination)) {
+            return false;
+        }
+        return dfs(currentNode, destination, new HashSet<>(), new ArrayList<>());
+    }
+
+    public List<Edge> getPath(Node node1, Node node2) {
+        if(!nodes.containsKey(node1) || !nodes.containsKey(node2)) {
+            return null;
+        }
+
+        Set<Node> visited = new HashSet<>();
+        List<Edge> path = new ArrayList<>();
+
+        if (dfs(node1, node2, visited, path)) {
+            return path;
+        }
+        return null;
+    }
+
+    private boolean dfs(Node currentNode, Node destination, Set<Node> visited, List<Edge> path) {
+        visited.add(currentNode);
         if (currentNode.equals(destination)) {
             return true;
         }
-        for (Edge edge : getNodes().get(currentNode)) {
-            if (!visitedNodes.contains(edge.getDestination())) {
-               if (pathExists(edge.getDestination(), destination)){
-                   return true;
-               }
+
+        for (Edge edge : nodes.get(currentNode)) {
+            Node nextNode = edge.getDestination();
+            if (!visited.contains(nextNode)) {
+                path.add(edge);
+                if (dfs(nextNode, destination, visited, path)) {
+                    return true;
+                }
+                path.remove(path.size() - 1);
             }
         }
         return false;
     }
-
-    public List<Edge> getPath(Node node1, Node node2) {
-        return null;
-    }
-
-//    private boolean recursiveVisitAll(City city, City searchingFor, Set<City> visited) {
-//        visited.add(city);
-//        if (city.equals(searchingFor)) {
-//            return true;
-//        }
-//        for (Edge e : cities.get(city)) {
-//            if (!visited.contains(e.getDestination())) {
-//                if (recursiveVisitAll(e.getDestination(), searchingFor, visited)) {
-//                    return true;
-//                }
-//            }
-//        }
-//        return false;
-//    }
 }
